@@ -19,6 +19,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # Ensure MSVC build tools are on PATH. If the MSVC link.exe isn't found,
 # locate vcvars64.bat and import the developer environment.
@@ -99,7 +100,7 @@ try {
     #   enabled_check/tracelogging                   (name only)
     #                           time:   [...]        (time on next line)
     $results = @{}
-    $timePattern = 'time:\s+\[[\d.]+ \w+ (?<estimate>[\d.]+) (?<unit>\w+) [\d.]+ \w+\]'
+    $timePattern = 'time:\s+\[[\d.]+ [^\s\[\]]+ (?<estimate>[\d.]+) (?<unit>[^\s\[\]]+) [\d.]+ [^\s\[\]]+\]'
     $namePattern = '(?<group>\S+)/(?<impl>tracelogging|wpp|tracing)'
     $pendingName = $null
 
