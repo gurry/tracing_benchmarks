@@ -591,6 +591,7 @@ dependencies = [
 [[package]]
 name = "wpp"
 version = "0.1.0"
+source = "git+https://github.com/gurry/windows-drivers-rs.git?branch=wdf-wpp#e44a3a6a58958c01acb7782741caf052aabfd232"
 dependencies = [
  "wpp-macros",
 ]
@@ -598,6 +599,7 @@ dependencies = [
 [[package]]
 name = "wpp-macros"
 version = "0.1.0"
+source = "git+https://github.com/gurry/windows-drivers-rs.git?branch=wdf-wpp#e44a3a6a58958c01acb7782741caf052aabfd232"
 dependencies = [
  "proc-macro2",
  "quote",

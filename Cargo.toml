@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 tracelogging = "1"
-wpp = { path = "D:/code/windows-drivers-rs/crates/wpp" }
+wpp = { git = "https://github.com/gurry/windows-drivers-rs.git", branch = "wdf-wpp" }
 
 [[bench]]
 name = "compare"
