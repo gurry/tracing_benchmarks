@@ -190,16 +190,11 @@ try {
             }
         }
 
-        if ($nsValues.Count -ge 2) {
-            $baseline = ($nsValues.Values | Measure-Object -Minimum).Minimum
+        if ($nsValues.ContainsKey('wpp')) {
+            $baseline = $nsValues['wpp']
             $trcMul = if ($nsValues.ContainsKey('tracing'))      { "{0:F2}x" -f ($nsValues['tracing'] / $baseline) }      else { "-" }
             $tlgMul = if ($nsValues.ContainsKey('tracelogging')) { "{0:F2}x" -f ($nsValues['tracelogging'] / $baseline) } else { "-" }
-            $wppMul = if ($nsValues.ContainsKey('wpp'))          { "{0:F2}x" -f ($nsValues['wpp'] / $baseline) }          else { "-" }
-
-            # Mark the baseline with "(baseline)"
-            if ($nsValues.ContainsKey('tracing')      -and $nsValues['tracing']      -eq $baseline) { $trcMul = "1.00x (baseline)" }
-            if ($nsValues.ContainsKey('tracelogging') -and $nsValues['tracelogging'] -eq $baseline) { $tlgMul = "1.00x (baseline)" }
-            if ($nsValues.ContainsKey('wpp')          -and $nsValues['wpp']          -eq $baseline) { $wppMul = "1.00x (baseline)" }
+            $wppMul = "1.00x (baseline)"
 
             $mulRow = "{0,-$nameWidth}  {1,-$colWidth}  {2,-$colWidth}  {3,-$colWidth}" -f "", $trcMul, $tlgMul, $wppMul
             Write-Host $mulRow -ForegroundColor DarkGray
