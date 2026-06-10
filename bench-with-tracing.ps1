@@ -11,7 +11,6 @@
 
 .EXAMPLE
     .\bench-with-tracing.ps1
-    .\bench-with-tracing.ps1 -Filter "multi_field"
     .\bench-with-tracing.ps1 -NoListeners
 #>
 
