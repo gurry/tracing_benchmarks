@@ -68,6 +68,19 @@ fn bench_fmt_with_single_arg(c: &mut Criterion) {
         });
     });
 
+    group.bench_function("tracing_etw", |b| {
+        b.iter(|| {
+            tracing_etw::etw_event!(
+                name: "BenchEvent",
+                tracing::Level::INFO,
+                0x1,
+                { status = black_box(status) },
+                "WdfDriverCreate failed with status {}",
+                black_box(status)
+            );
+        });
+    });
+
     group.bench_function("tracelogging", |b| {
         b.iter(|| {
             tlg::write_event!(

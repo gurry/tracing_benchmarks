@@ -648,8 +648,10 @@ name = "tracelogging-wpp-bench"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "paste",
  "tracelogging",
  "tracing",
+ "tracing-core",
  "tracing-etw",
  "tracing-subscriber",
  "wpp",

@@ -106,7 +106,7 @@ try {
     #                           time:   [...]        (time on next line)
     $results = @{}
     $timePattern = 'time:\s+\[[\d.]+ [^\s\[\]]+ (?<estimate>[\d.]+) (?<unit>[^\s\[\]]+) [\d.]+ [^\s\[\]]+\]'
-    $namePattern = '(?<group>\S+)/(?<impl>tracelogging|wpp|tracing)'
+    $namePattern = '(?<group>\S+)/(?<impl>tracelogging|wpp|tracing_etw|tracing)'
     $pendingName = $null
 
     foreach ($line in $output -split "`n") {
@@ -148,14 +148,14 @@ try {
     $nameWidth = [Math]::Max($nameWidth, 10)
     $colWidth  = 18
 
-    $header = "{0,-$nameWidth}  {1,-$colWidth}  {2,-$colWidth}  {3,-$colWidth}" -f "Benchmark", "tracing", "tracelogging", "wpp"
+    $header = "{0,-$nameWidth}  {1,-$colWidth}  {2,-$colWidth}  {3,-$colWidth}  {4,-$colWidth}" -f "Benchmark", "tracing", "tracing_etw", "tracelogging", "wpp"
     $separator = "-" * $header.Length
     Write-Host $header -ForegroundColor White
     Write-Host $separator
 
     # Collect group order from the parsed results (matches the order they appeared).
     $orderedGroups = [System.Collections.Generic.List[string]]::new()
-    $namePattern2 = '(?<group>\S+)/(?<impl>tracelogging|wpp|tracing)'
+    $namePattern2 = '(?<group>\S+)/(?<impl>tracelogging|wpp|tracing_etw|tracing)'
     foreach ($line in $output -split "`n") {
         if ($line -match $namePattern2) {
             $g = $Matches['group']
@@ -169,13 +169,14 @@ try {
         $tlg = if ($results[$group].ContainsKey('tracelogging')) { $results[$group]['tracelogging'] } else { "-" }
         $wpp = if ($results[$group].ContainsKey('wpp'))          { $results[$group]['wpp'] }          else { "-" }
         $trc = if ($results[$group].ContainsKey('tracing'))      { $results[$group]['tracing'] }      else { "-" }
-        $row = "{0,-$nameWidth}  {1,-$colWidth}  {2,-$colWidth}  {3,-$colWidth}" -f $group, $trc, $tlg, $wpp
+        $tetw = if ($results[$group].ContainsKey('tracing_etw')) { $results[$group]['tracing_etw'] }  else { "-" }
+        $row = "{0,-$nameWidth}  {1,-$colWidth}  {2,-$colWidth}  {3,-$colWidth}  {4,-$colWidth}" -f $group, $trc, $tetw, $tlg, $wpp
         Write-Host $row
 
         # Compute relative multiples normalized to the fastest (WPP as baseline).
         # Convert all values to nanoseconds for comparison.
         $nsValues = @{}
-        foreach ($impl in @('tracing', 'tracelogging', 'wpp')) {
+        foreach ($impl in @('tracing', 'tracing_etw', 'tracelogging', 'wpp')) {
             if ($results[$group].ContainsKey($impl)) {
                 $parts = $results[$group][$impl] -split ' '
                 $val = [double]$parts[0]
@@ -193,10 +194,11 @@ try {
         if ($nsValues.ContainsKey('wpp')) {
             $baseline = $nsValues['wpp']
             $trcMul = if ($nsValues.ContainsKey('tracing'))      { "{0:F2}x" -f ($nsValues['tracing'] / $baseline) }      else { "-" }
+            $tetwMul = if ($nsValues.ContainsKey('tracing_etw')) { "{0:F2}x" -f ($nsValues['tracing_etw'] / $baseline) }  else { "-" }
             $tlgMul = if ($nsValues.ContainsKey('tracelogging')) { "{0:F2}x" -f ($nsValues['tracelogging'] / $baseline) } else { "-" }
             $wppMul = "1.00x (baseline)"
 
-            $mulRow = "{0,-$nameWidth}  {1,-$colWidth}  {2,-$colWidth}  {3,-$colWidth}" -f "", $trcMul, $tlgMul, $wppMul
+            $mulRow = "{0,-$nameWidth}  {1,-$colWidth}  {2,-$colWidth}  {3,-$colWidth}  {4,-$colWidth}" -f "", $trcMul, $tetwMul, $tlgMul, $wppMul
             Write-Host $mulRow -ForegroundColor DarkGray
         }
     }

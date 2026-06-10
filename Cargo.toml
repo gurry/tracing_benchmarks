@@ -4,8 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+paste = "1"
 tracelogging = "1"
 tracing = "0.1"
+tracing-core = "0.1"
 tracing-etw = "0.2"
 tracing-subscriber = "0.3"
 wpp = { git = "https://github.com/gurry/windows-drivers-rs.git", branch = "wdf-wpp" }
