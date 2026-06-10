@@ -1,4 +1,5 @@
 #![feature(codeview_annotation)]
+#![allow(unused)]
 
 //! Criterion benchmarks comparing `tracelogging` vs `wpp` crate performance.
 //!
@@ -18,15 +19,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tracelogging as tlg;
 
-// ---------------------------------------------------------------------------
-// TraceLogging provider
-// ---------------------------------------------------------------------------
-
 tlg::define_provider!(TLG_PROVIDER, "BenchProvider.TraceLogging");
-
-// ---------------------------------------------------------------------------
-// WPP provider
-// ---------------------------------------------------------------------------
 
 wpp::wpp_control_guids!(
     WppBench 84bdb2e9-829e-41b3-b891-02f454bc2bd7 {
@@ -34,9 +27,6 @@ wpp::wpp_control_guids!(
     }
 );
 
-// ---------------------------------------------------------------------------
-// Helpers: register/unregister both providers
-// ---------------------------------------------------------------------------
 
 fn register_all() {
     unsafe {
@@ -50,128 +40,6 @@ fn unregister_all() {
     TLG_PROVIDER.unregister();
 }
 
-// ---------------------------------------------------------------------------
-// Benchmarks: no fields
-// ---------------------------------------------------------------------------
-
-fn bench_no_fields(c: &mut Criterion) {
-    register_all();
-    let mut group = c.benchmark_group("no_fields");
-
-    group.bench_function("tracelogging", |b| {
-        b.iter(|| {
-            let _ = black_box(tlg::write_event!(TLG_PROVIDER, "NoFieldEvent"));
-        });
-    });
-
-    group.bench_function("wpp", |b| {
-        b.iter(|| {
-            black_box(trace!(INFO, GENERAL, "NoFieldEvent"));
-        });
-    });
-
-    group.finish();
-    unregister_all();
-}
-
-// ---------------------------------------------------------------------------
-// Benchmarks: single u32 field
-// ---------------------------------------------------------------------------
-
-fn bench_u32_field(c: &mut Criterion) {
-    register_all();
-    let mut group = c.benchmark_group("u32_field");
-    let val: u32 = 42;
-
-    group.bench_function("tracelogging", |b| {
-        b.iter(|| {
-            let _ = black_box(tlg::write_event!(
-                TLG_PROVIDER,
-                "U32Event",
-                u32("Counter", &val),
-            ));
-        });
-    });
-
-    group.bench_function("wpp", |b| {
-        b.iter(|| {
-            black_box(trace!(INFO, GENERAL, "{}", val));
-        });
-    });
-
-    group.finish();
-    unregister_all();
-}
-
-// ---------------------------------------------------------------------------
-// Benchmarks: single string field
-// ---------------------------------------------------------------------------
-
-fn bench_str_field(c: &mut Criterion) {
-    register_all();
-    let mut group = c.benchmark_group("str_field");
-    let msg = "hello world benchmark string payload";
-
-    group.bench_function("tracelogging", |b| {
-        b.iter(|| {
-            let _ = black_box(tlg::write_event!(
-                TLG_PROVIDER,
-                "StrEvent",
-                str8("Message", msg),
-            ));
-        });
-    });
-
-    group.bench_function("wpp", |b| {
-        b.iter(|| {
-            black_box(trace!(INFO, GENERAL, "{}", msg));
-        });
-    });
-
-    group.finish();
-    unregister_all();
-}
-
-// ---------------------------------------------------------------------------
-// Benchmarks: multiple mixed-type fields
-// ---------------------------------------------------------------------------
-
-fn bench_multi_field(c: &mut Criterion) {
-    register_all();
-    let mut group = c.benchmark_group("multi_field");
-    let name = "benchmark-operation";
-    let count: u32 = 100;
-    let elapsed: f64 = 3.14159;
-    let ok: bool = true;
-
-    group.bench_function("tracelogging", |b| {
-        b.iter(|| {
-            let _ = black_box(tlg::write_event!(
-                TLG_PROVIDER,
-                "MultiFieldEvent",
-                level(Informational),
-                keyword(0x1),
-                str8("Name", name),
-                u32("Count", &count),
-                f64("Elapsed", &elapsed),
-                bool8("Success", &ok),
-            ));
-        });
-    });
-
-    group.bench_function("wpp", |b| {
-        b.iter(|| {
-            black_box(trace!(INFO, GENERAL, "{} {} {} {}", name, count, elapsed, ok));
-        });
-    });
-
-    group.finish();
-    unregister_all();
-}
-
-// ---------------------------------------------------------------------------
-// Benchmarks: enabled check only
-// ---------------------------------------------------------------------------
 
 fn bench_enabled_check(c: &mut Criterion) {
     register_all();
@@ -193,14 +61,35 @@ fn bench_enabled_check(c: &mut Criterion) {
     unregister_all();
 }
 
-// ---------------------------------------------------------------------------
+fn bench_fmt_with_single_arg(c: &mut Criterion) {
+    register_all();
+    let mut group = c.benchmark_group("fmt_with_single_arg");
+    let status = -1;
+
+    group.bench_function("tracelogging", |b| {
+        b.iter(|| {
+            let _ = black_box(tlg::write_event!(
+                TLG_PROVIDER,
+                "StrEvent",
+                str8("Format", "WdfDriverCreate failed with status {}"),
+                i32("Status", &status),
+            ));
+        });
+    });
+
+    group.bench_function("wpp", |b| {
+        b.iter(|| {
+            black_box(trace!(INFO, GENERAL, "WdfDriverCreate failed with status {}", status));
+        });
+    });
+
+    group.finish();
+    unregister_all();
+}
 
 criterion_group!(
     benches,
-    bench_enabled_check,
-    bench_no_fields,
-    bench_u32_field,
-    bench_str_field,
-    bench_multi_field,
+    // bench_enabled_check,
+    bench_fmt_with_single_arg,
 );
 criterion_main!(benches);
