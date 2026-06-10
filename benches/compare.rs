@@ -59,29 +59,29 @@ fn bench_fmt_with_single_arg(c: &mut Criterion) {
 
     group.bench_function("tracing", |b| {
         b.iter(|| {
-            black_box(tracing::event!(
+            tracing::event!(
                 tracing::Level::INFO,
-                status,
+                status = black_box(status),
                 "WdfDriverCreate failed with status {}",
-                status
-            ));
+                black_box(status)
+            );
         });
     });
 
     group.bench_function("tracelogging", |b| {
         b.iter(|| {
-            let _ = black_box(tlg::write_event!(
+            tlg::write_event!(
                 TLG_PROVIDER,
                 "StrEvent",
-                str8("Format", "WdfDriverCreate failed with status {}"),
-                i32("Status", &status),
-            ));
+                str8("Format", black_box("WdfDriverCreate failed with status {}")),
+                i32("Status", &black_box(status)),
+            );
         });
     });
 
     group.bench_function("wpp", |b| {
         b.iter(|| {
-            black_box(trace!(INFO, GENERAL, "WdfDriverCreate failed with status {}", status));
+            trace!(INFO, GENERAL, "WdfDriverCreate failed with status {}", black_box(status));
         });
     });
 
