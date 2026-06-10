@@ -12,10 +12,12 @@
 .EXAMPLE
     .\bench-with-tracing.ps1
     .\bench-with-tracing.ps1 -Filter "multi_field"
+    .\bench-with-tracing.ps1 -NoListeners
 #>
 
 param(
-    [string]$Filter  # Optional Criterion filter (e.g. "multi_field", "str_field")
+    [string]$Filter,       # Optional Criterion filter (e.g. "multi_field", "str_field")
+    [switch]$NoListeners   # Skip starting ETW trace sessions
 )
 
 $ErrorActionPreference = "Stop"
@@ -64,18 +66,22 @@ function Stop-Sessions {
 Stop-Sessions
 
 try {
-    Write-Host "Starting ETW trace sessions..." -ForegroundColor Cyan
-    logman create trace $TlgSession -o tlg.etl -p $TlgGuid 0xFF 5 -ow -f bincirc -max 256 | Out-Null
-    logman start $TlgSession | Out-Null
-    Write-Host "  [+] $TlgSession listening on $TlgGuid"
+    if (-not $NoListeners) {
+        Write-Host "Starting ETW trace sessions..." -ForegroundColor Cyan
+        logman create trace $TlgSession -o tlg.etl -p $TlgGuid 0xFF 5 -ow -f bincirc -max 256 | Out-Null
+        logman start $TlgSession | Out-Null
+        Write-Host "  [+] $TlgSession listening on $TlgGuid"
 
-    logman create trace $WppSession -o wpp.etl -p $WppGuid 0xFF 5 -ow -f bincirc -max 256 | Out-Null
-    logman start $WppSession | Out-Null
-    Write-Host "  [+] $WppSession listening on $WppGuid"
+        logman create trace $WppSession -o wpp.etl -p $WppGuid 0xFF 5 -ow -f bincirc -max 256 | Out-Null
+        logman start $WppSession | Out-Null
+        Write-Host "  [+] $WppSession listening on $WppGuid"
 
-    logman create trace $TracingSession -o tracing.etl -p $TracingGuid 0xFF 5 -ow -f bincirc -max 256 | Out-Null
-    logman start $TracingSession | Out-Null
-    Write-Host "  [+] $TracingSession listening on $TracingGuid"
+        logman create trace $TracingSession -o tracing.etl -p $TracingGuid 0xFF 5 -ow -f bincirc -max 256 | Out-Null
+        logman start $TracingSession | Out-Null
+        Write-Host "  [+] $TracingSession listening on $TracingGuid"
+    } else {
+        Write-Host "Running WITHOUT ETW listeners (disabled fast-path)." -ForegroundColor Yellow
+    }
 
     Write-Host ""
     Write-Host "Running benchmarks..." -ForegroundColor Cyan
@@ -203,11 +209,12 @@ try {
     Write-Host ""
 }
 finally {
-    Write-Host "Stopping ETW trace sessions..." -ForegroundColor Cyan
-    Stop-Sessions
-    Write-Host "  [+] Sessions stopped and cleaned up."
+    if (-not $NoListeners) {
+        Write-Host "Stopping ETW trace sessions..." -ForegroundColor Cyan
+        Stop-Sessions
+        Write-Host "  [+] Sessions stopped and cleaned up."
 
-    # Clean up .etl files
-    Remove-Item -Path "*.etl" -ErrorAction SilentlyContinue
-    Write-Host "  [+] Removed .etl files."
+        Remove-Item -Path "*.etl" -ErrorAction SilentlyContinue
+        Write-Host "  [+] Removed .etl files."
+    }
 }
