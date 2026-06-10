@@ -80,7 +80,7 @@ try {
         logman start $TracingSession | Out-Null
         Write-Host "  [+] $TracingSession listening on $TracingGuid"
     } else {
-        Write-Host "Running WITHOUT ETW listeners (disabled fast-path)." -ForegroundColor Yellow
+        Write-Host "Running WITHOUT ETW listeners." -ForegroundColor Yellow
     }
 
     Write-Host ""
