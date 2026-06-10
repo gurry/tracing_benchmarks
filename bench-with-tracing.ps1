@@ -166,6 +166,39 @@ try {
         $trc = if ($results[$group].ContainsKey('tracing'))      { $results[$group]['tracing'] }      else { "-" }
         $row = "{0,-$nameWidth}  {1,-$colWidth}  {2,-$colWidth}  {3,-$colWidth}" -f $group, $trc, $tlg, $wpp
         Write-Host $row
+
+        # Compute relative multiples normalized to the fastest (WPP as baseline).
+        # Convert all values to nanoseconds for comparison.
+        $nsValues = @{}
+        foreach ($impl in @('tracing', 'tracelogging', 'wpp')) {
+            if ($results[$group].ContainsKey($impl)) {
+                $parts = $results[$group][$impl] -split ' '
+                $val = [double]$parts[0]
+                $unit = $parts[1]
+                switch -Regex ($unit) {
+                    '^ps$'    { $nsValues[$impl] = $val / 1000; break }
+                    '^ns$'    { $nsValues[$impl] = $val; break }
+                    '^ms$'    { $nsValues[$impl] = $val * 1000000; break }
+                    's$'      { $nsValues[$impl] = $val * 1000; break }  # µs / us
+                    default   { $nsValues[$impl] = $val }
+                }
+            }
+        }
+
+        if ($nsValues.Count -ge 2) {
+            $baseline = ($nsValues.Values | Measure-Object -Minimum).Minimum
+            $trcMul = if ($nsValues.ContainsKey('tracing'))      { "{0:F2}x" -f ($nsValues['tracing'] / $baseline) }      else { "-" }
+            $tlgMul = if ($nsValues.ContainsKey('tracelogging')) { "{0:F2}x" -f ($nsValues['tracelogging'] / $baseline) } else { "-" }
+            $wppMul = if ($nsValues.ContainsKey('wpp'))          { "{0:F2}x" -f ($nsValues['wpp'] / $baseline) }          else { "-" }
+
+            # Mark the baseline with "(baseline)"
+            if ($nsValues.ContainsKey('tracing')      -and $nsValues['tracing']      -eq $baseline) { $trcMul = "1.00x (baseline)" }
+            if ($nsValues.ContainsKey('tracelogging') -and $nsValues['tracelogging'] -eq $baseline) { $tlgMul = "1.00x (baseline)" }
+            if ($nsValues.ContainsKey('wpp')          -and $nsValues['wpp']          -eq $baseline) { $wppMul = "1.00x (baseline)" }
+
+            $mulRow = "{0,-$nameWidth}  {1,-$colWidth}  {2,-$colWidth}  {3,-$colWidth}" -f "", $trcMul, $tlgMul, $wppMul
+            Write-Host $mulRow -ForegroundColor DarkGray
+        }
     }
     Write-Host ""
 }
