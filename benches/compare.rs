@@ -1,23 +1,20 @@
 #![feature(codeview_annotation)]
 #![allow(unused)]
 
-//! Criterion benchmarks comparing `tracelogging` vs `wpp` crate performance.
+//! Criterion benchmarks comparing `tracelogging` vs `wpp` vs `tracing-etw` crate performance.
 //!
-//! Both providers are registered but no ETW session is actively collecting,
+//! All providers are registered but no ETW session is actively collecting,
 //! so we measure the cost of the enabled-check fast-path plus any overhead
 //! the macro introduces (field serialization, descriptors, etc.).
 //!
 //! Run with: cargo +stage1 bench
 //!
-//! To benchmark with an active ETW listener collecting events:
-//!   tracelog -start BenchTlg -f tlg.etl -guid *BenchProvider.TraceLogging -level 5 -matchanykw 0xFF
-//!   tracelog -start BenchWpp -f wpp.etl -guid 84bdb2e9-829e-41b3-b891-02f454bc2bd7 -level 5 -matchanykw 0xFF
-//!   cargo +stage1 bench
-//!   tracelog -stop BenchTlg
-//!   tracelog -stop BenchWpp
+//! To benchmark with an active ETW listener collecting events, use:
+//!   .\bench-with-tracing.ps1
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tracelogging as tlg;
+use tracing_subscriber::prelude::*;
 
 tlg::define_provider!(TLG_PROVIDER, "BenchProvider.TraceLogging");
 
@@ -27,12 +24,26 @@ wpp::wpp_control_guids!(
     }
 );
 
+static TRACING_INIT: std::sync::Once = std::sync::Once::new();
 
 fn register_all() {
     unsafe {
         TLG_PROVIDER.register();
         WppBench::init();
     }
+
+    // tracing-etw uses the tracing subscriber infrastructure, which can only
+    // be set once per process. Use Once to guard initialization.
+    TRACING_INIT.call_once(|| {
+        tracing_subscriber::registry()
+            .with(
+                tracing_etw::LayerBuilder::new("BenchProvider.TracingEtw")
+                    .with_default_keyword(0x1)
+                    .build()
+                    .unwrap(),
+            )
+            .init();
+    });
 }
 
 fn unregister_all() {
@@ -41,30 +52,21 @@ fn unregister_all() {
 }
 
 
-fn bench_enabled_check(c: &mut Criterion) {
-    register_all();
-    let mut group = c.benchmark_group("enabled_check");
-
-    group.bench_function("tracelogging", |b| {
-        b.iter(|| {
-            black_box(TLG_PROVIDER.enabled(tlg::Level::Verbose, 0x1));
-        });
-    });
-
-    group.bench_function("wpp", |b| {
-        b.iter(|| {
-            black_box(WppBench::STATE.is_enabled(5, WppBench::GENERAL));
-        });
-    });
-
-    group.finish();
-    unregister_all();
-}
-
 fn bench_fmt_with_single_arg(c: &mut Criterion) {
     register_all();
     let mut group = c.benchmark_group("fmt_with_single_arg");
     let status = -1;
+
+    group.bench_function("tracing", |b| {
+        b.iter(|| {
+            black_box(tracing::event!(
+                tracing::Level::INFO,
+                status,
+                "WdfDriverCreate failed with status {}",
+                status
+            ));
+        });
+    });
 
     group.bench_function("tracelogging", |b| {
         b.iter(|| {
@@ -89,7 +91,6 @@ fn bench_fmt_with_single_arg(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    // bench_enabled_check,
     bench_fmt_with_single_arg,
 );
 criterion_main!(benches);

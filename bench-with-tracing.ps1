@@ -45,14 +45,18 @@ if (-not $msvcLink) {
 
 $TlgGuid  = "{bf23fbc9-fdb4-5ff0-224a-d48fce07abc4}"  # BenchProvider.TraceLogging
 $WppGuid  = "{84bdb2e9-829e-41b3-b891-02f454bc2bd7}"  # WppBench
+$TracingGuid = "{0f611534-1dd7-5683-e283-5e5edd22fc72}"  # BenchProvider.TracingEtw (tracing crate backend)
 $TlgSession = "BenchTlg"
 $WppSession = "BenchWpp"
+$TracingSession = "BenchTracing"
 
 function Stop-Sessions {
     logman stop $TlgSession 2>$null | Out-Null
     logman delete $TlgSession 2>$null | Out-Null
     logman stop $WppSession 2>$null | Out-Null
     logman delete $WppSession 2>$null | Out-Null
+    logman stop $TracingSession 2>$null | Out-Null
+    logman delete $TracingSession 2>$null | Out-Null
 }
 
 # Clean up any leftover sessions from a previous run.
@@ -67,6 +71,10 @@ try {
     logman create trace $WppSession -o wpp.etl -p $WppGuid 0xFF 5 -ow -f bincirc -max 256 | Out-Null
     logman start $WppSession | Out-Null
     Write-Host "  [+] $WppSession listening on $WppGuid"
+
+    logman create trace $TracingSession -o tracing.etl -p $TracingGuid 0xFF 5 -ow -f bincirc -max 256 | Out-Null
+    logman start $TracingSession | Out-Null
+    Write-Host "  [+] $TracingSession listening on $TracingGuid"
 
     Write-Host ""
     Write-Host "Running benchmarks..." -ForegroundColor Cyan
@@ -92,7 +100,7 @@ try {
     #                           time:   [...]        (time on next line)
     $results = @{}
     $timePattern = 'time:\s+\[[\d.]+ \w+ (?<estimate>[\d.]+) (?<unit>\w+) [\d.]+ \w+\]'
-    $namePattern = '(?<group>\S+)/(?<impl>tracelogging|wpp)'
+    $namePattern = '(?<group>\S+)/(?<impl>tracelogging|wpp|tracing)'
     $pendingName = $null
 
     foreach ($line in $output -split "`n") {
@@ -134,14 +142,14 @@ try {
     $nameWidth = [Math]::Max($nameWidth, 10)
     $colWidth  = 18
 
-    $header = "{0,-$nameWidth}  {1,-$colWidth}  {2,-$colWidth}" -f "Benchmark", "tracelogging", "wpp"
+    $header = "{0,-$nameWidth}  {1,-$colWidth}  {2,-$colWidth}  {3,-$colWidth}" -f "Benchmark", "tracing", "tracelogging", "wpp"
     $separator = "-" * $header.Length
     Write-Host $header -ForegroundColor White
     Write-Host $separator
 
     # Collect group order from the parsed results (matches the order they appeared).
     $orderedGroups = [System.Collections.Generic.List[string]]::new()
-    $namePattern2 = '(?<group>\S+)/(?<impl>tracelogging|wpp)'
+    $namePattern2 = '(?<group>\S+)/(?<impl>tracelogging|wpp|tracing)'
     foreach ($line in $output -split "`n") {
         if ($line -match $namePattern2) {
             $g = $Matches['group']
@@ -154,7 +162,8 @@ try {
     foreach ($group in $orderedGroups) {
         $tlg = if ($results[$group].ContainsKey('tracelogging')) { $results[$group]['tracelogging'] } else { "-" }
         $wpp = if ($results[$group].ContainsKey('wpp'))          { $results[$group]['wpp'] }          else { "-" }
-        $row = "{0,-$nameWidth}  {1,-$colWidth}  {2,-$colWidth}" -f $group, $tlg, $wpp
+        $trc = if ($results[$group].ContainsKey('tracing'))      { $results[$group]['tracing'] }      else { "-" }
+        $row = "{0,-$nameWidth}  {1,-$colWidth}  {2,-$colWidth}  {3,-$colWidth}" -f $group, $trc, $tlg, $wpp
         Write-Host $row
     }
     Write-Host ""
